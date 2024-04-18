@@ -1,0 +1,20 @@
+version: "3.7"
+services:
+  mongodb:
+    container_name: prescription-db
+    image: "mongo:latest"
+    restart: on-failure
+    volumes:
+      - "/home/ridmi/Documents/prescription-db-backup:/data/db"
+    ports:
+      - "27018:27017"
+
+  app:
+    container_name: prescription-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+    depends_on:
+      - mongodb
