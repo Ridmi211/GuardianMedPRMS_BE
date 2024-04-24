@@ -7,6 +7,7 @@ import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -27,6 +28,10 @@ public class User {
     private String password;
 
     private Set<Role> roles = new HashSet<>();
+
+    private String otp;
+
+    private Date otpExpiryTime;
 
     public User(String username, String email, String password) {
         this.username = username;

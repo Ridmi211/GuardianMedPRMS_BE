@@ -9,6 +9,7 @@ import com.guardianMed.patientRecordManagement.system.repositories.UserRepositor
 import com.guardianMed.patientRecordManagement.system.models.ERole;
 import com.guardianMed.patientRecordManagement.system.models.User;
 import com.guardianMed.patientRecordManagement.system.payload.response.MessageResponse;
+import com.guardianMed.patientRecordManagement.system.security.OtpService;
 import com.guardianMed.patientRecordManagement.system.services.UserDetailsImpl;
 import com.guardianMed.patientRecordManagement.system.security.jwt.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,9 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.security.RolesAllowed;
 import javax.validation.Valid;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -42,6 +41,9 @@ public class AuthController {
 
     @Autowired
     UserRepository userRepository;
+
+    @Autowired
+    OtpService otpService;
 
     @Autowired
     RoleRepository roleRepository;
@@ -60,8 +62,9 @@ public class AuthController {
 
         try {
             logger.info("Authentication request received ");
-            Authentication authentication = authenticationManager.authenticate(
 
+            // Authenticate with username and password
+            Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(loginRequest.username(), loginRequest.password()));
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
@@ -75,6 +78,30 @@ public class AuthController {
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("You do not have permission to access this system.");
             }
 
+            // Retrieve user entity
+            User user = userRepository.findByUsername(userDetails.getUsername())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+// Generate OTP
+            String otp = otpService.generateOtp();
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.MINUTE, 5); // 5 minutes expiry time
+            Date otpExpiryTime = cal.getTime();
+// Save the OTP to the user entity
+            user.setOtp(otp);
+            user.setOtpExpiryTime(otpExpiryTime);
+            userRepository.save(user);
+
+// Send OTP via email
+            otpService.sendOtp(otp, user.getEmail());
+
+
+            // Check if OTP is provided and validate it
+            if (loginRequest.otp() == null || loginRequest.otp().isEmpty() || !otpService.validateOtp(user.getUsername(), loginRequest.otp())) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid OTP");
+            }
+
+            // Generate JWT token
             String jwt = jwtUtils.generateJwtToken(authentication);
             String successMessage = "Successfully signed in as " + userDetails.getUsername();
 
