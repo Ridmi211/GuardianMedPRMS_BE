@@ -59,6 +59,7 @@ public class WebSecurityConfig extends WebSecurityConfigurerAdapter {
 //             Authentication
                 .antMatchers("/api/auth/signin").permitAll()
                 .antMatchers("/api/auth/signup").permitAll()
+                .antMatchers("/api/auth/verify-otp").permitAll()
 
 //             patients
                 .antMatchers("/patients/all").hasAnyAuthority("ROLE_SUPER_ADMIN","ROLE_ADMIN")
