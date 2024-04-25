@@ -4,6 +4,7 @@ import com.guardianMed.patientRecordManagement.system.models.Role;
 import com.guardianMed.patientRecordManagement.system.payload.requests.LoginRequest;
 import com.guardianMed.patientRecordManagement.system.payload.requests.SignupRequest;
 import com.guardianMed.patientRecordManagement.system.payload.response.JwtResponse;
+import com.guardianMed.patientRecordManagement.system.payload.response.OTPResponse;
 import com.guardianMed.patientRecordManagement.system.repositories.RoleRepository;
 import com.guardianMed.patientRecordManagement.system.repositories.UserRepository;
 import com.guardianMed.patientRecordManagement.system.models.ERole;
@@ -74,14 +75,6 @@ public class AuthController {
             User user = userRepository.findByUsername(loginRequest.username())
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-            // Trigger MFA by generating and sending OTP
-//            String otp = otpService.generateOtp();
-//            otpService.sendOtp(otp,user.getEmail());
-//
-//            // Save OTP to user entity
-//            user.setOtp(otp);
-//            userRepository.save(user);
-
             // Generate OTP
             String otp = otpService.generateOtp();
             Calendar cal = Calendar.getInstance();
@@ -93,8 +86,8 @@ public class AuthController {
             userRepository.save(user);
             otpService.sendOtp(otp,user.getEmail());
             // Response indicating OTP sent
-            return ResponseEntity.ok("OTP sent to your email for verification");
-
+//            return ResponseEntity.ok("OTP sent to your email for verification");
+            return ResponseEntity.ok(new OTPResponse(true, "OTP sent to your email for verification"));
         } catch (BadCredentialsException e) {
             logger.error("Invalid username or password provided for authentication", e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
@@ -106,48 +99,6 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred");
         }
     }
-
-//    @PostMapping("/verify-otp")
-//    @CrossOrigin(origins = "http://localhost:4200")
-//    @RolesAllowed({"", ""})
-//    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> otpData) {
-//
-//        try {
-//            String username = otpData.get("username");
-//            String otp = otpData.get("otp");
-//
-//            // Retrieve user entity
-//            User user = userRepository.findByUsername(username)
-//                    .orElseThrow(() -> new RuntimeException("User not found"));
-//
-//            // Validate OTP
-//            if (otpService.validateOtp(username, otp)) {
-//                // If OTP is valid, generate JWT token
-//                Authentication authentication = new UsernamePasswordAuthenticationToken(username, null);
-//                SecurityContextHolder.getContext().setAuthentication(authentication);
-//                UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-//
-//
-//                String jwt = jwtUtils.generateJwtToken(authentication);
-//
-//                // Clear OTP from user entity
-//                user.setOtp(null);
-//                userRepository.save(user);
-//
-//                // Return JWT token
-//                return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(), userDetails.getUsername(),
-//                        userDetails.getEmail(), userDetails.getAuthorities().stream()
-//                        .map(GrantedAuthority::getAuthority)
-//                        .collect(Collectors.toList())));
-//            } else {
-//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid OTP");
-//            }
-//
-//        } catch (Exception e) {
-//            logger.error("Error occurred during OTP verification", e);
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred");
-//        }
-//    }
 
     @PostMapping("/verify-otp")
     @CrossOrigin(origins = "http://localhost:4200")
@@ -198,7 +149,6 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred");
         }
     }
-
 
     @PostMapping("/signup")
     @CrossOrigin(origins = "http://localhost:4200")
