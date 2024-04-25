@@ -25,6 +25,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.GrantedAuthority;
+
 
 import javax.annotation.security.RolesAllowed;
 import javax.validation.Valid;
@@ -68,21 +70,19 @@ public class AuthController {
                     new UsernamePasswordAuthenticationToken(loginRequest.username(), loginRequest.password()));
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
-            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-            List<String> roles = userDetails.getAuthorities().stream()
-                    .map(item -> item.getAuthority())
-                    .collect(Collectors.toList());
-
-            // Check if the user has the admin or superadmin role
-            if (!roles.contains(ERole.ROLE_ADMIN.toString()) && !roles.contains(ERole.ROLE_SUPER_ADMIN.toString())) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("You do not have permission to access this system.");
-            }
-
             // Retrieve user entity
-            User user = userRepository.findByUsername(userDetails.getUsername())
+            User user = userRepository.findByUsername(loginRequest.username())
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
-// Generate OTP
+            // Trigger MFA by generating and sending OTP
+//            String otp = otpService.generateOtp();
+//            otpService.sendOtp(otp,user.getEmail());
+//
+//            // Save OTP to user entity
+//            user.setOtp(otp);
+//            userRepository.save(user);
+
+            // Generate OTP
             String otp = otpService.generateOtp();
             Calendar cal = Calendar.getInstance();
             cal.add(Calendar.MINUTE, 5); // 5 minutes expiry time
@@ -91,28 +91,10 @@ public class AuthController {
             user.setOtp(otp);
             user.setOtpExpiryTime(otpExpiryTime);
             userRepository.save(user);
+            otpService.sendOtp(otp,user.getEmail());
+            // Response indicating OTP sent
+            return ResponseEntity.ok("OTP sent to your email for verification");
 
-// Send OTP via email
-            otpService.sendOtp(otp, user.getEmail());
-
-
-            // Check if OTP is provided and validate it
-            if (loginRequest.otp() == null || loginRequest.otp().isEmpty() || !otpService.validateOtp(user.getUsername(), loginRequest.otp())) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid OTP");
-            }
-
-            // Generate JWT token
-            String jwt = jwtUtils.generateJwtToken(authentication);
-            String successMessage = "Successfully signed in as " + userDetails.getUsername();
-
-            JwtResponse response = new JwtResponse(jwt,
-                    userDetails.getId(),
-                    userDetails.getUsername(),
-                    userDetails.getEmail(),
-                    roles);
-            response.setSuccessMessage(successMessage);
-
-            return ResponseEntity.ok(response);
         } catch (BadCredentialsException e) {
             logger.error("Invalid username or password provided for authentication", e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
@@ -124,6 +106,99 @@ public class AuthController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred");
         }
     }
+
+//    @PostMapping("/verify-otp")
+//    @CrossOrigin(origins = "http://localhost:4200")
+//    @RolesAllowed({"", ""})
+//    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> otpData) {
+//
+//        try {
+//            String username = otpData.get("username");
+//            String otp = otpData.get("otp");
+//
+//            // Retrieve user entity
+//            User user = userRepository.findByUsername(username)
+//                    .orElseThrow(() -> new RuntimeException("User not found"));
+//
+//            // Validate OTP
+//            if (otpService.validateOtp(username, otp)) {
+//                // If OTP is valid, generate JWT token
+//                Authentication authentication = new UsernamePasswordAuthenticationToken(username, null);
+//                SecurityContextHolder.getContext().setAuthentication(authentication);
+//                UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+//
+//
+//                String jwt = jwtUtils.generateJwtToken(authentication);
+//
+//                // Clear OTP from user entity
+//                user.setOtp(null);
+//                userRepository.save(user);
+//
+//                // Return JWT token
+//                return ResponseEntity.ok(new JwtResponse(jwt, userDetails.getId(), userDetails.getUsername(),
+//                        userDetails.getEmail(), userDetails.getAuthorities().stream()
+//                        .map(GrantedAuthority::getAuthority)
+//                        .collect(Collectors.toList())));
+//            } else {
+//                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid OTP");
+//            }
+//
+//        } catch (Exception e) {
+//            logger.error("Error occurred during OTP verification", e);
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred");
+//        }
+//    }
+
+    @PostMapping("/verify-otp")
+    @CrossOrigin(origins = "http://localhost:4200")
+    @RolesAllowed({"", ""})
+    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> otpData) {
+
+        try {
+            String username = otpData.get("username");
+            String otp = otpData.get("otp");
+
+            // Retrieve user entity
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+
+            // Validate OTP
+            if (otpService.validateOtp(username, otp)) {
+                // If OTP is valid, generate JWT token
+                UserDetailsImpl userDetails = UserDetailsImpl.build(user);
+
+                Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+
+                String jwt = jwtUtils.generateJwtToken(authentication);
+                String successMessage = "Successfully signed in as " + userDetails.getUsername();
+
+                JwtResponse response = new JwtResponse(jwt,
+                        userDetails.getId(),
+                        userDetails.getUsername(),
+                        userDetails.getEmail(),
+                        userDetails.getAuthorities().stream()
+                                .map(GrantedAuthority::getAuthority)
+                                .collect(Collectors.toList()));
+                response.setSuccessMessage(successMessage);
+
+                // Clear OTP from user entity
+                user.setOtp(null);
+                user.setOtpExpiryTime(null);
+                userRepository.save(user);
+
+                // Return JWT token
+                return ResponseEntity.ok(response);
+            } else {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid OTP");
+            }
+
+        } catch (Exception e) {
+            logger.error("Error occurred during OTP verification", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred");
+        }
+    }
+
 
     @PostMapping("/signup")
     @CrossOrigin(origins = "http://localhost:4200")

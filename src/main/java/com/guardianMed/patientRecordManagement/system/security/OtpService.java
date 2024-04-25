@@ -46,8 +46,15 @@ public class OtpService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         // Check if OTP matches
-        if (!user.getOtp().equals(otp)) {
-            return false;
+
+        String userOtp = user.getOtp();
+        if (userOtp == null) {
+            return false; // OTP is not set for the user
+        }
+
+        // Check if OTP matches
+        if (!userOtp.equals(otp)) {
+            return false; // OTP does not match
         }
 
         // Check if OTP is expired
