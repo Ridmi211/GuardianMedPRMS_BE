@@ -34,8 +34,9 @@ public class OtpService {
 
     public void sendOtp(String otp, String destination) {
         // Construct email message
-        String subject = "Your OTP for Login";
-        String message = "Your OTP is: " + otp;
+        String subject = "Your One-Time Password (OTP) for Login";
+        String message = "Your OTP for login is: " + otp + ".\n\nPlease use this OTP to complete the login process. This OTP is valid for 2 minutes.\n\nIf you did not request this OTP, please contact us immediately to secure your account.\n\nBest regards,\nThe GuardianMed Team";
+
 
         // Send OTP via email
         emailService.sendEmail(destination, subject, message);
