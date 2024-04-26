@@ -79,7 +79,7 @@ public class AuthController {
             // Generate OTP
             String otp = otpService.generateOtp();
             Calendar cal = Calendar.getInstance();
-            cal.add(Calendar.MINUTE, 2); // 2 minutes expiry time
+            cal.add(Calendar.MINUTE, 2); // 5 minutes expiry time
             Date otpExpiryTime = cal.getTime();
 // Save the OTP to the user entity
             user.setOtp(otp);
@@ -91,7 +91,7 @@ public class AuthController {
             return ResponseEntity.ok(new OTPResponse(true, "OTP sent to your email for verification"));
         } catch (BadCredentialsException e) {
             logger.error("Invalid username or password provided for authentication", e);
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(new ApiResponse<>(false, "Invalid username or password"));
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiResponse<>(false, "Invalid username or password"));
         } catch (AuthenticationException e) {
             logger.error("Authentication failed: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Authentication failed");
