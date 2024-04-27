@@ -4,15 +4,18 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Random;
 
+import com.guardianMed.patientRecordManagement.system.controllers.AuthController;
 import com.guardianMed.patientRecordManagement.system.models.User;
 import com.guardianMed.patientRecordManagement.system.repositories.UserRepository;
 import com.guardianMed.patientRecordManagement.system.services.EmailService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
 public class OtpService {
-
+    private static final Logger logger = LoggerFactory.getLogger(OtpService.class);
     @Autowired
     private UserRepository userRepository;
     @Autowired
@@ -50,11 +53,13 @@ public class OtpService {
 
         String userOtp = user.getOtp();
         if (userOtp == null) {
+            logger.info("OTP is not set for the user");
             return false; // OTP is not set for the user
         }
 
         // Check if OTP matches
         if (!userOtp.equals(otp)) {
+            logger.info("OTP does not match");
             return false; // OTP does not match
         }
 
@@ -63,6 +68,7 @@ public class OtpService {
         if (otpExpiryTime == null || otpExpiryTime.before(new Date())) {
             return false;
         }
+        logger.info("OTP verified");
         return true;
     }
 

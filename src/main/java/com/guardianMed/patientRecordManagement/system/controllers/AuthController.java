@@ -88,6 +88,7 @@ public class AuthController {
             otpService.sendOtp(otp,user.getEmail());
             // Response indicating OTP sent
 //            return ResponseEntity.ok("OTP sent to your email for verification");
+            logger.info("OTP sent ");
             return ResponseEntity.ok(new OTPResponse(true, "OTP sent to your email for verification"));
         } catch (BadCredentialsException e) {
             logger.error("Invalid username or password provided for authentication", e);
@@ -125,7 +126,7 @@ public class AuthController {
 
                 String jwt = jwtUtils.generateJwtToken(authentication);
                 String successMessage = "Successfully signed in as " + userDetails.getUsername();
-
+                logger.info("Successfully signed in as " + userDetails.getUsername());
                 JwtResponse response = new JwtResponse(jwt,
                         userDetails.getId(),
                         userDetails.getUsername(),
@@ -144,6 +145,7 @@ public class AuthController {
                 return ResponseEntity.ok(response);
             } else {
                 // Return unauthorized response if OTP or password is invalid
+                logger.error("Invalid OTP or password");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>(false, "Invalid OTP or password"));
             }
 
