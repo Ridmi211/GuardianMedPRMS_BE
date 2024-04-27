@@ -3,6 +3,7 @@ package com.guardianMed.patientRecordManagement.system.controllers;
 import com.guardianMed.patientRecordManagement.system.models.Role;
 import com.guardianMed.patientRecordManagement.system.payload.requests.LoginRequest;
 import com.guardianMed.patientRecordManagement.system.payload.requests.SignupRequest;
+import com.guardianMed.patientRecordManagement.system.payload.response.ApiResponse;
 import com.guardianMed.patientRecordManagement.system.payload.response.JwtResponse;
 import com.guardianMed.patientRecordManagement.system.payload.response.OTPResponse;
 import com.guardianMed.patientRecordManagement.system.repositories.RoleRepository;
@@ -78,7 +79,7 @@ public class AuthController {
             // Generate OTP
             String otp = otpService.generateOtp();
             Calendar cal = Calendar.getInstance();
-            cal.add(Calendar.MINUTE, 5); // 5 minutes expiry time
+            cal.add(Calendar.MINUTE, 2); // 5 minutes expiry time
             Date otpExpiryTime = cal.getTime();
 // Save the OTP to the user entity
             user.setOtp(otp);
@@ -87,10 +88,11 @@ public class AuthController {
             otpService.sendOtp(otp,user.getEmail());
             // Response indicating OTP sent
 //            return ResponseEntity.ok("OTP sent to your email for verification");
+            logger.info("OTP sent ");
             return ResponseEntity.ok(new OTPResponse(true, "OTP sent to your email for verification"));
         } catch (BadCredentialsException e) {
             logger.error("Invalid username or password provided for authentication", e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiResponse<>(false, "Invalid username or password"));
         } catch (AuthenticationException e) {
             logger.error("Authentication failed: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Authentication failed");
@@ -108,14 +110,15 @@ public class AuthController {
         try {
             String username = otpData.get("username");
             String otp = otpData.get("otp");
+            String password = otpData.get("password"); // Retrieve password from request
 
             // Retrieve user entity
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new RuntimeException("User not found"));
 
             // Validate OTP
-            if (otpService.validateOtp(username, otp)) {
-                // If OTP is valid, generate JWT token
+            if (otpService.validateOtp(username, otp) && encoder.matches(password, user.getPassword())) { // Verify password
+                // If OTP and password are valid, generate JWT token
                 UserDetailsImpl userDetails = UserDetailsImpl.build(user);
 
                 Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null);
@@ -123,7 +126,7 @@ public class AuthController {
 
                 String jwt = jwtUtils.generateJwtToken(authentication);
                 String successMessage = "Successfully signed in as " + userDetails.getUsername();
-
+                logger.info("Successfully signed in as " + userDetails.getUsername());
                 JwtResponse response = new JwtResponse(jwt,
                         userDetails.getId(),
                         userDetails.getUsername(),
@@ -141,12 +144,14 @@ public class AuthController {
                 // Return JWT token
                 return ResponseEntity.ok(response);
             } else {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid OTP");
+                // Return unauthorized response if OTP or password is invalid
+                logger.error("Invalid OTP or password");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>(false, "Invalid OTP or password"));
             }
 
         } catch (Exception e) {
             logger.error("Error occurred during OTP verification", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred");
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiResponse<>(false, "An error occurred"));
         }
     }
 

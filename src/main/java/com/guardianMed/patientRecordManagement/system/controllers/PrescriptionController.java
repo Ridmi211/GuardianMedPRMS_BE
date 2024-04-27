@@ -35,7 +35,7 @@ public class PrescriptionController {
             return ResponseEntity.status(HttpStatus.CREATED).body(savedPrescription);
         } else {
             logger.error("Failed to save prescription");
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred while saving the prescription");
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("An error occurred while saving the prescription");
         }
     }
 

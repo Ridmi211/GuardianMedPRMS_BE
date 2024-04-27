@@ -12,8 +12,8 @@ public record LoginRequest(
         @NotBlank(message = "Field is required")
         String username,
         @NotBlank(message = "Field is required")
-        String password,
+        String password
 
-        String otp
+//        String otp
 ) {
 }
