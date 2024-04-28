@@ -14,14 +14,13 @@ jobs:
         uses: actions/checkout@v2
 
       # Add steps for building your application (e.g., installing dependencies, compiling code)
-#      - name: Build with Maven
-#        run: mvn clean install --file pom.xml
+      - name: Build with Maven
+        run: mvn clean install --file pom.xml
 
       - name: Run tests
         run: mvn test
 
       # Add steps for deploying your application (e.g., pushing to production, deploying to a server)
 
-      - name: Deploy
-        # Add the command to deploy your application
+
 
