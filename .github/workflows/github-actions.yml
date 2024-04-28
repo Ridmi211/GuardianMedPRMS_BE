@@ -22,5 +22,6 @@ jobs:
 
       # Add steps for deploying your application (e.g., pushing to production, deploying to a server)
 
-
+#      - name: Deploy
+#        # Add the command to deploy your application
 
