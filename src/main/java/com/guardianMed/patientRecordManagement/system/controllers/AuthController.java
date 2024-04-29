@@ -86,8 +86,7 @@ public class AuthController {
             user.setOtpExpiryTime(otpExpiryTime);
             userRepository.save(user);
             otpService.sendOtp(otp,user.getEmail());
-            // Response indicating OTP sent
-//            return ResponseEntity.ok("OTP sent to your email for verification");
+
             logger.info("OTP sent ");
             return ResponseEntity.ok(new OTPResponse(true, "OTP sent to your email for verification"));
         } catch (BadCredentialsException e) {
