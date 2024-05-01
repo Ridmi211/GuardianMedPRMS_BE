@@ -27,7 +27,6 @@ public class PrescriptionRequest {
 
     private String patientName;
 
-//    @NotNull(message = "Date is required")
     private LocalDate date;
 
     @NotBlank(message = "Diagnosis is required")

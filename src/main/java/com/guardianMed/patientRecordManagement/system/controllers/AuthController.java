@@ -67,26 +67,19 @@ public class AuthController {
         try {
             logger.info("Authentication request received ");
 
-            // Authenticate with username and password
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(loginRequest.username(), loginRequest.password()));
             SecurityContextHolder.getContext().setAuthentication(authentication);
-
-            // Retrieve user entity
             User user = userRepository.findByUsername(loginRequest.username())
                     .orElseThrow(() -> new RuntimeException("User not found"));
-
-            // Generate OTP
             String otp = otpService.generateOtp();
             Calendar cal = Calendar.getInstance();
-            cal.add(Calendar.MINUTE, 2); // 5 minutes expiry time
+            cal.add(Calendar.MINUTE, 2);
             Date otpExpiryTime = cal.getTime();
-// Save the OTP to the user entity
             user.setOtp(otp);
             user.setOtpExpiryTime(otpExpiryTime);
             userRepository.save(user);
-            otpService.sendOtp(otp,user.getEmail());
-
+            otpService.sendOtp(otp, user.getEmail());
             logger.info("OTP sent ");
             return ResponseEntity.ok(new OTPResponse(true, "OTP sent to your email for verification"));
         } catch (BadCredentialsException e) {
@@ -109,20 +102,13 @@ public class AuthController {
         try {
             String username = otpData.get("username");
             String otp = otpData.get("otp");
-            String password = otpData.get("password"); // Retrieve password from request
-
-            // Retrieve user entity
+            String password = otpData.get("password");
             User user = userRepository.findByUsername(username)
                     .orElseThrow(() -> new RuntimeException("User not found"));
-
-            // Validate OTP
-            if (otpService.validateOtp(username, otp) && encoder.matches(password, user.getPassword())) { // Verify password
-                // If OTP and password are valid, generate JWT token
+            if (otpService.validateOtp(username, otp) && encoder.matches(password, user.getPassword())) {
                 UserDetailsImpl userDetails = UserDetailsImpl.build(user);
-
                 Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null);
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-
                 String jwt = jwtUtils.generateJwtToken(authentication);
                 String successMessage = "Successfully signed in as " + userDetails.getUsername();
                 logger.info("Successfully signed in as " + userDetails.getUsername());
@@ -134,20 +120,14 @@ public class AuthController {
                                 .map(GrantedAuthority::getAuthority)
                                 .collect(Collectors.toList()));
                 response.setSuccessMessage(successMessage);
-
-                // Clear OTP from user entity
                 user.setOtp(null);
                 user.setOtpExpiryTime(null);
                 userRepository.save(user);
-
-                // Return JWT token
                 return ResponseEntity.ok(response);
             } else {
-                // Return unauthorized response if OTP or password is invalid
                 logger.error("Invalid OTP or password");
                 return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>(false, "Invalid OTP or password"));
             }
-
         } catch (Exception e) {
             logger.error("Error occurred during OTP verification", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiResponse<>(false, "An error occurred"));
@@ -220,18 +200,4 @@ public class AuthController {
         String successMessage = "Registered successfully with the following role(s): " + roleMessage;
         return ResponseEntity.ok(new MessageResponse(successMessage));
     }
-
-
-//    @PostMapping("/logout")
-//    public ResponseEntity<?> logout(HttpServletRequest request) {
-//        // Get the authentication token from the request
-//        String token = jwtUtils.parseJwt(request);
-//
-//        // Invalidate the token (add it to the blacklist or perform any necessary actions)
-//        jwtUtils.addToBlacklist(token);
-//
-//        // Return a success message
-//        return ResponseEntity.ok(new MessageResponse("Logout successful"));
-//    }
-
 }
