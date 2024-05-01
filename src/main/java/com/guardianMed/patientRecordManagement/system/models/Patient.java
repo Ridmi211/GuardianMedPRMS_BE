@@ -36,6 +36,6 @@ public class Patient {
     private long contactNumber;
 
 
-
-
+    public Patient(String nic123, String johnDoe, String male, int i, String s, String mail, int i1) {
+    }
 }
