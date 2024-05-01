@@ -1,0 +1,27 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main  # Change this to your main branch name
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Add steps for building your application (e.g., installing dependencies, compiling code)
+      - name: Build with Maven
+        run: mvn clean install --file pom.xml
+
+      - name: Run tests
+        run: mvn test
+
+      # Add steps for deploying your application (e.g., pushing to production, deploying to a server)
+
+#      - name: Deploy
+#        # Add the command to deploy your application
+

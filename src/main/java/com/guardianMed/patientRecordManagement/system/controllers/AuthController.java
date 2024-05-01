@@ -3,12 +3,15 @@ package com.guardianMed.patientRecordManagement.system.controllers;
 import com.guardianMed.patientRecordManagement.system.models.Role;
 import com.guardianMed.patientRecordManagement.system.payload.requests.LoginRequest;
 import com.guardianMed.patientRecordManagement.system.payload.requests.SignupRequest;
+import com.guardianMed.patientRecordManagement.system.payload.response.ApiResponse;
 import com.guardianMed.patientRecordManagement.system.payload.response.JwtResponse;
+import com.guardianMed.patientRecordManagement.system.payload.response.OTPResponse;
 import com.guardianMed.patientRecordManagement.system.repositories.RoleRepository;
 import com.guardianMed.patientRecordManagement.system.repositories.UserRepository;
 import com.guardianMed.patientRecordManagement.system.models.ERole;
 import com.guardianMed.patientRecordManagement.system.models.User;
 import com.guardianMed.patientRecordManagement.system.payload.response.MessageResponse;
+import com.guardianMed.patientRecordManagement.system.security.OtpService;
 import com.guardianMed.patientRecordManagement.system.services.UserDetailsImpl;
 import com.guardianMed.patientRecordManagement.system.security.jwt.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,12 +27,12 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.security.core.GrantedAuthority;
+
 
 import javax.annotation.security.RolesAllowed;
 import javax.validation.Valid;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RestController
@@ -42,6 +45,9 @@ public class AuthController {
 
     @Autowired
     UserRepository userRepository;
+
+    @Autowired
+    OtpService otpService;
 
     @Autowired
     RoleRepository roleRepository;
@@ -60,41 +66,71 @@ public class AuthController {
 
         try {
             logger.info("Authentication request received ");
-            Authentication authentication = authenticationManager.authenticate(
 
+            Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(loginRequest.username(), loginRequest.password()));
             SecurityContextHolder.getContext().setAuthentication(authentication);
-
-            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-            List<String> roles = userDetails.getAuthorities().stream()
-                    .map(item -> item.getAuthority())
-                    .collect(Collectors.toList());
-
-            // Check if the user has the admin or superadmin role
-            if (!roles.contains(ERole.ROLE_ADMIN.toString()) && !roles.contains(ERole.ROLE_SUPER_ADMIN.toString())) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("You do not have permission to access this system.");
-            }
-
-            String jwt = jwtUtils.generateJwtToken(authentication);
-            String successMessage = "Successfully signed in as " + userDetails.getUsername();
-
-            JwtResponse response = new JwtResponse(jwt,
-                    userDetails.getId(),
-                    userDetails.getUsername(),
-                    userDetails.getEmail(),
-                    roles);
-            response.setSuccessMessage(successMessage);
-
-            return ResponseEntity.ok(response);
+            User user = userRepository.findByUsername(loginRequest.username())
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            String otp = otpService.generateOtp();
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.MINUTE, 2);
+            Date otpExpiryTime = cal.getTime();
+            user.setOtp(otp);
+            user.setOtpExpiryTime(otpExpiryTime);
+            userRepository.save(user);
+            otpService.sendOtp(otp, user.getEmail());
+            logger.info("OTP sent ");
+            return ResponseEntity.ok(new OTPResponse(true, "OTP sent to your email for verification"));
         } catch (BadCredentialsException e) {
             logger.error("Invalid username or password provided for authentication", e);
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid username or password");
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiResponse<>(false, "Invalid username or password"));
         } catch (AuthenticationException e) {
             logger.error("Authentication failed: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Authentication failed");
         } catch (Exception e) {
             logger.error("An error occurred during authentication", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("An error occurred");
+        }
+    }
+
+    @PostMapping("/verify-otp")
+    @CrossOrigin(origins = "http://localhost:4200")
+    @RolesAllowed({"", ""})
+    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> otpData) {
+
+        try {
+            String username = otpData.get("username");
+            String otp = otpData.get("otp");
+            String password = otpData.get("password");
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            if (otpService.validateOtp(username, otp) && encoder.matches(password, user.getPassword())) {
+                UserDetailsImpl userDetails = UserDetailsImpl.build(user);
+                Authentication authentication = new UsernamePasswordAuthenticationToken(userDetails, null);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+                String jwt = jwtUtils.generateJwtToken(authentication);
+                String successMessage = "Successfully signed in as " + userDetails.getUsername();
+                logger.info("Successfully signed in as " + userDetails.getUsername());
+                JwtResponse response = new JwtResponse(jwt,
+                        userDetails.getId(),
+                        userDetails.getUsername(),
+                        userDetails.getEmail(),
+                        userDetails.getAuthorities().stream()
+                                .map(GrantedAuthority::getAuthority)
+                                .collect(Collectors.toList()));
+                response.setSuccessMessage(successMessage);
+                user.setOtp(null);
+                user.setOtpExpiryTime(null);
+                userRepository.save(user);
+                return ResponseEntity.ok(response);
+            } else {
+                logger.error("Invalid OTP or password");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ApiResponse<>(false, "Invalid OTP or password"));
+            }
+        } catch (Exception e) {
+            logger.error("Error occurred during OTP verification", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ApiResponse<>(false, "An error occurred"));
         }
     }
 
@@ -164,18 +200,4 @@ public class AuthController {
         String successMessage = "Registered successfully with the following role(s): " + roleMessage;
         return ResponseEntity.ok(new MessageResponse(successMessage));
     }
-
-
-//    @PostMapping("/logout")
-//    public ResponseEntity<?> logout(HttpServletRequest request) {
-//        // Get the authentication token from the request
-//        String token = jwtUtils.parseJwt(request);
-//
-//        // Invalidate the token (add it to the blacklist or perform any necessary actions)
-//        jwtUtils.addToBlacklist(token);
-//
-//        // Return a success message
-//        return ResponseEntity.ok(new MessageResponse("Logout successful"));
-//    }
-
 }

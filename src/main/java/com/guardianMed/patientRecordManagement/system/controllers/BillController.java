@@ -60,7 +60,7 @@ public class BillController {
                 return ResponseEntity.status(HttpStatus.CREATED).body(savedBill);
             } else {
                 logger.error("Failed to add bill");
-                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to add bill");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("Failed to add bill");
             }
         } catch (Exception e) {
             logger.error("Error occurred while adding bill: {}", e.getMessage());

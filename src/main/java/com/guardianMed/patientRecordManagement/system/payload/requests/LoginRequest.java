@@ -13,5 +13,6 @@ public record LoginRequest(
         String username,
         @NotBlank(message = "Field is required")
         String password
+
 ) {
 }

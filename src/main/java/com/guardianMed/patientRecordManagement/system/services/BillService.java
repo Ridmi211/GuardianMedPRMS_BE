@@ -89,12 +89,12 @@ public class BillService {
                 messageBuilder.append("Bill Details:\n");
                 messageBuilder.append(billDetails).append("\n");
                 messageBuilder.append("Should you have any further queries or require additional information, please do not hesitate to contact our dedicated support team \n");
-                messageBuilder.append("at +9481 456 7890 or via email at medicare@gmail.com. We are here to assist you with any concerns you may have.\n\n");
+                messageBuilder.append("at +9481 456 7890 or via email at guardianMed@gmail.com. We are here to assist you with any concerns you may have.\n\n");
                 messageBuilder.append("Thank you once again for choosing our services. We value your trust in our healthcare provider and remain committed \n");
                 messageBuilder.append("to delivering high-quality care to our patients.\n\n");
                 messageBuilder.append("Wishing you continued good health and well-being.\n\n");
                 messageBuilder.append("Warm regards,\n\n");
-                messageBuilder.append("Healthcare Provider/MediCareLanka\n");
+                messageBuilder.append("Healthcare Provider/GuardianMed\n");
 
 
 

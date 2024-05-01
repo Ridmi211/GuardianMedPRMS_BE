@@ -26,7 +26,7 @@ public class PatientService {
     private PrescriptionRepository prescriptionRepository;
 
     public Patient savePatient(@Valid PatientRequest patientRequest) {
-        logger.info("Saving patient: {}", patientRequest);
+        logger.info("Trying to save patient: {}", patientRequest);
 
         Patient patient = new Patient();
         patient.setPatientNIC(patientRequest.getPatientNIC());
@@ -38,8 +38,9 @@ public class PatientService {
         patient.setContactNumber(patientRequest.getContactNumber());
 
         if (patientRepository.findByPatientNIC(patient.getPatientNIC()) != null) {
+            logger.info("Couldn't save.Patient with NIC " + patient.getPatientNIC() + " already exists");
             throw new DuplicateKeyException("Patient with NIC " + patient.getPatientNIC() + " already exists");
-        }
+                  }
 
         Patient savedPatient = patientRepository.save(patient);
         logger.info("Patient saved successfully: {}", savedPatient);
